@@ -3,6 +3,7 @@ import mediapipe as mp
 import pygame
 import bg_particles as bg_particles
 import math
+import numpy as np
 
 model_path = './face_landmarker.task'
 cam = cv2.VideoCapture(0)
@@ -10,7 +11,7 @@ cam.set(3,640)
 cam.set(4,480)
 
 mpFaceMesh = mp.solutions.face_mesh
-face_mesh = mpFaceMesh.FaceMesh()
+face_mesh = mpFaceMesh.FaceMesh(max_num_faces = 1, refine_landmarks = True, min_detection_confidence = 0.5, min_tracking_confidence = 0.5)
 mpDraw = mp.solutions.drawing_utils
 
 bg_particle_effect = bg_particles.Master()
@@ -37,6 +38,10 @@ LEFT_EYEBROW =[ 336, 296, 334, 293, 300, 276, 283, 282, 295, 285 ]
 RIGHT_EYE=[ 33, 7, 163, 144, 145, 153, 154, 155, 133, 173, 157, 158, 159, 160, 161 , 246 ]  
 RIGHT_EYEBROW=[ 70, 63, 105, 66, 107, 55, 65, 52, 53, 46 ]
 
+#Irises
+left_iris = [474, 475, 476, 477]
+right_iris = [469, 470, 471, 472]
+
 def distance_between_points(point1, point2):
     return math.sqrt(math.pow(point1[0] - point2[0], 2) + math.pow(point1[1] - point2[1], 2))
 
@@ -51,11 +56,7 @@ def blink_right(polygon_points):
     horizantal_distance = distance_between_points(rh_right, rh_left)
 
     ratio = vertical_distance/horizantal_distance
-    if ratio < 0.26:
-        return True
-    return False
 
-def blink_left(polygon_points):
     rh_right = polygon_points[LEFT_EYE[0]]
     rh_left = polygon_points[LEFT_EYE[8]]
 
@@ -65,8 +66,40 @@ def blink_left(polygon_points):
     vertical_distance = distance_between_points(rv_top, rv_down)
     horizantal_distance = distance_between_points(rh_right, rh_left)
 
+    ratio2 = vertical_distance/horizantal_distance
+
+    final_ratio = (ratio + ratio2)/2
+
+    if final_ratio < 0.24:
+        return True
+    return False
+
+def blink_left(polygon_points):
+    rh_right = polygon_points[RIGHT_EYE[0]]
+    rh_left = polygon_points[RIGHT_EYE[8]]
+
+    rv_top = polygon_points[RIGHT_EYE[12]]
+    rv_down = polygon_points[RIGHT_EYE[4]]
+
+    vertical_distance = distance_between_points(rv_top, rv_down)
+    horizantal_distance = distance_between_points(rh_right, rh_left)
+
     ratio = vertical_distance/horizantal_distance
-    if ratio < 0.26:
+
+    rh_right = polygon_points[LEFT_EYE[0]]
+    rh_left = polygon_points[LEFT_EYE[8]]
+
+    rv_top = polygon_points[LEFT_EYE[12]]
+    rv_down = polygon_points[LEFT_EYE[4]]
+
+    vertical_distance = distance_between_points(rv_top, rv_down)
+    horizantal_distance = distance_between_points(rh_right, rh_left)
+
+    ratio2 = vertical_distance/horizantal_distance
+
+    final_ratio = (ratio + ratio2)/2
+
+    if final_ratio < 0.24:
         return True
     return False
     
@@ -86,7 +119,7 @@ while run:
     polygon_points = []
     right_rect = []
     eye_rect = []
-
+    #print(mp.solutions.face_mesh.FACEMESH_IRISES)
     for loc in mp.solutions.face_mesh.FACEMESH_CONTOURS:
         eye_rect.append(loc)
 
@@ -102,7 +135,8 @@ while run:
                 connection_drawing_spec=mp.solutions.drawing_styles
                 .get_default_face_mesh_contours_style())
     
-
+    
+    print(len(polygon_points))
     if len(polygon_points) > 0:
 
         bg_particle_effect.recursive_call(time, display, [0,0], 1, [polygon_points[LIPS[0]][0], polygon_points[LIPS[0]][0] + 90], [polygon_points[LIPS[0]][1] + 15, polygon_points[LIPS[0]][1] + 15])
@@ -119,7 +153,8 @@ while run:
             pygame.draw.polygon(display, (0,0,255), [(polygon_points[p][0], polygon_points[p][1]) for p in LEFT_EYEBROW])
         else:
             pygame.draw.polygon(display, (0,0,255), [(polygon_points[p][0] , polygon_points[p][1] + 10) for p in LEFT_EYEBROW])
-        
+        pygame.draw.polygon(display, (255,255,255), [polygon_points[p] for p in right_iris])
+        pygame.draw.polygon(display, (255,255,255), [polygon_points[p] for p in left_iris])
         pygame.draw.polygon(display, (0,0,255), [polygon_points[p] for p in LIPS])
         pygame.draw.polygon(display, (0,0,255), [polygon_points[p] for p in LOWER_LIPS])
         pygame.draw.polygon(display, (0,0,255), [polygon_points[p] for p in UPPER_LIPS])
